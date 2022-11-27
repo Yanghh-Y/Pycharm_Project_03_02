@@ -1,0 +1,49 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from matplotlib.pyplot import MultipleLocator
+
+import seaborn as sns
+
+#--读取数据--#
+# 读取遥相关指数
+TELIS = pd.read_csv(r'F:\6_Scientific_Research\3_Teleconnection\1_Data\Teleconnection\WI.csv', usecols=['A1A2', 'A1A3', 'B1B2', 'B1B3', 'C1C2', 'C1C3', 'E1E2', 'E1E3'])
+# TELIS = pd.read_csv(r'F:\6_Scientific_Research\3_Teleconnection\1_Data\Teleconnection\HI.csv', usecols=['B1B2', 'C1C2', 'D1D2', 'E1E2', 'F1F2'])
+Col = TELIS.columns
+# TELIS = pd.concat([WTELIS, HTELIS], axis=1)
+# col = ['W_A1A2', 'W_A1A3', 'W_B1B2', 'W_B1B3', 'W_C1C2', 'W_C1C3', 'W_E1E2', 'W_E1E3', 'H_B1B2', 'H_C1C2', 'H_D1D2', 'H_E1E2',
+#        'H_F1F2']
+# year = range(1979, 2023)
+# 遥相关指数标准化
+def ZscoreNormalization(x):
+    """Z-score normaliaztion"""
+    x = (x - np.mean(x)) / np.std(x)
+    return x
+TELIS['A1A2_std'], TELIS['A1A3_std'], TELIS['B1B2_std'], TELIS['B1B3_std'], TELIS['C1C2_std'], TELIS['C1C3_std'], TELIS['E1E2_std'], TELIS['E1E3_std']\
+    = ZscoreNormalization(TELIS.A1A2), ZscoreNormalization(TELIS.A1A3), ZscoreNormalization(TELIS.B1B2), ZscoreNormalization(TELIS.B1B3), ZscoreNormalization(TELIS.C1C2), ZscoreNormalization(TELIS.C1C3), ZscoreNormalization(TELIS.E1E2), ZscoreNormalization(TELIS.E1E3)
+year = range(1979, 2023)
+# 定义绘制回归分布的等值线图
+fig = plt.figure(figsize=(4,10), dpi=600)
+fig.subplots_adjust(hspace=0.7) # 子图间距
+ax1 = fig.add_subplot(8, 1, 1)
+ax2 = fig.add_subplot(8, 1, 2)
+ax3 = fig.add_subplot(8, 1, 3)
+ax4 = fig.add_subplot(8, 1, 4)
+ax5 = fig.add_subplot(8, 1, 5)
+ax6 = fig.add_subplot(8, 1, 6)
+ax7 = fig.add_subplot(8, 1, 7)
+ax8 = fig.add_subplot(8, 1, 8)
+axs = [ax1, ax2, ax3, ax4, ax5, ax6, ax7, ax8]
+for i in range(8):
+    # 纵坐标
+    axs[i].set_ylim(-2.5, 2.5)  # 设置纵坐标 范围
+    # y_major_locator = MultipleLocator(1)  # 设置纵坐标最小刻度
+    # axs[i].yaxis.set_major_locator(y_major_locator)
+    # 子图图题
+    axs[i].set_title(str(Col[i]), loc='left')
+    # 条形图
+    axs[i].bar(year, TELIS.iloc[:, 8+i], width=0.8, color='red')
+    fig.savefig(r'F:\6_Scientific_Research\3_Teleconnection\2_Picture\4_Explanation\W-Tel_Series.png')
+    plt.suptitle('H-TEL-INDEX of 1979-2022', x=0.5, y=0.98)
+plt.show()
+

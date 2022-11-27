@@ -1,0 +1,7 @@
+一、 1_Tel-H_Cir_H_Profile.py 已经截面回归，现在加上风速。
+    加上v_h和w_h风速，与Cir_H对应的还是不错的
+    u_h和w_W风速，与Cir_W对应的可以
+二、 2_Tel_H_Point_Cir_H_Profile.py
+    在定义的H遥相关的两端做剖面回归
+三、 2_Tel_W_Point_Cir_W_Profile.py
+    两端做的剖面回归，填充色符合的还可以但是箭头感觉对不上所以打算试试合成分析

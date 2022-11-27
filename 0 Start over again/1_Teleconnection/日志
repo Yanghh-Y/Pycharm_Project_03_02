@@ -1,0 +1,5 @@
+之前的文件可能有错，因此这次重新计算
+一、1_Cir_H_Identify_Teleconnection.py
+    计算每个点上的[27, 144]的相关系数,生成
+二、R/3_Direct_R_Tel.py 直接将GHT的遥相关点搬过来计算R的遥相关
+

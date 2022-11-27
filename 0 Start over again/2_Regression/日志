@@ -1,0 +1,10 @@
+一、2_H+DW_Muliti_Reg_Predict_SAT.py
+    全部HW和去除高相关性的HW预测结果大差不差
+    进行标准化和不进行标准化效果是一样的，准备再试试逐步拟合回归
+二、2_H+DW_Step_Reg_Predict_SAT.py
+    进行标准化和不进行标准化效果是一样的,准备将分辨率换一下
+三、所有文件分辨率SAT换成1*1，并且完整的HW
+四、新建2_Regression\R_H_W_Multiple 按老师说的将R的按照GHT的遥相关点加入HW进行回归SAT场
+
+
+

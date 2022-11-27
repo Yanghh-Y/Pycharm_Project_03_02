@@ -1,0 +1,56 @@
+1_T-N_Wave_Reg_GHT-Tel
+1、
+        Φ(hgt_sum[70, 37, 144]),
+        Φ = Φ.mean(dim='year') # [37, 144]
+        Φ_prime = -(Φ_climatic.mean(dim='lon')+ (-1 * Φ)) # [70, 37, 144]
+        Ψ_prime = Φ_prime / f # [70, 37, 144]在这里求回归
+        # 对准地准流函数求回归 (没有去线性趋势)
+        Ψ_reg = np.zeros((37, 144))
+        for i in range(37):
+               for j in range(144):
+                      Ψ_reg[i, j], _, _, _, _ = linregress(teli.iloc[:, 6], Ψ_prime[:, i, j])
+        Ψ_prime = xr.DataArray(Ψ_reg, coords=[lat_rad, lon_rad], dims=['lat', 'lon'])
+        Ψ_prime = Ψ_prime* units('meter ** 2 / second')
+    画出的图Fy>>Fx，不符合，试一下绘制去了线性趋势
+        # 对准地准流函数去线性趋势
+        Ψ_prime = np.array(Ψ_prime)
+        Ψ_prime_detrend = scipy.signal.detrend(Ψ_prime[:, 1:, :], axis=0, type='linear', overwrite_data=False)
+        Ψ_prime_mean = Ψ_prime.mean(0)
+        for iyear in range(70):
+            Ψ_prime[iyear, 1:, :] = Ψ_prime_detrend[iyear, :, :] + Ψ_prime_mean[1:, :]
+        # 求回归
+        Ψ_reg = np.zeros((37, 144))
+        for i in range(37):
+               for j in range(144):
+                      Ψ_reg[i, j], _, _, _, _ = linregress(teli.iloc[:, 6], Ψ_prime[:, i, j])
+        Ψ_prime = xr.DataArray(Ψ_reg, coords=[lat_rad, lon_rad], dims=['lat', 'lon'])
+        Ψ_prime = Ψ_prime* units('meter ** 2 / second')
+    画出的图依然不对
+
+
+2、
+        Φ(hgt_sum[70, 37, 144]),
+        Φ_prime = Φ # [70, 37, 144]
+        Ψ_prime = Φ_prime / f # [70, 37, 144]在这里求回归
+        # 对准地准流函数求回归 (没有去线性趋势)
+        Ψ_reg = np.zeros((37, 144))
+        for i in range(37):
+               for j in range(144):
+                      Ψ_reg[i, j], _, _, _, _ = linregress(teli.iloc[:, 6], Ψ_prime[:, i, j])
+        Ψ_prime = xr.DataArray(Ψ_reg, coords=[lat_rad, lon_rad], dims=['lat', 'lon'])
+        Ψ_prime = Ψ_prime* units('meter ** 2 / second')
+    画出的图Fy>>Fx，不符合，试一下绘制去了线性趋势
+        # 对准地准流函数去线性趋势
+        Ψ_prime = np.array(Ψ_prime)
+        Ψ_prime_detrend = scipy.signal.detrend(Ψ_prime[:, 1:, :], axis=0, type='linear', overwrite_data=False)
+        Ψ_prime_mean = Ψ_prime.mean(0)
+        for iyear in range(70):
+            Ψ_prime[iyear, 1:, :] = Ψ_prime_detrend[iyear, :, :] + Ψ_prime_mean[1:, :]
+        # 求回归
+        Ψ_reg = np.zeros((37, 144))
+        for i in range(37):
+               for j in range(144):
+                      Ψ_reg[i, j], _, _, _, _ = linregress(teli.iloc[:, 6], Ψ_prime[:, i, j])
+        Ψ_prime = xr.DataArray(Ψ_reg, coords=[lat_rad, lon_rad], dims=['lat', 'lon'])
+        Ψ_prime = Ψ_prime* units('meter ** 2 / second')
+    渡劫成功！

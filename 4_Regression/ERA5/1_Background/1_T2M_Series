@@ -1,0 +1,45 @@
+import xarray as xr
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+from matplotlib.pyplot import MultipleLocator
+from global_land_mask import globe
+import numpy as np
+
+
+#--读取数据--#
+# f1 = xr.open_dataset(r'F:\7_Data\0_Science_Program\1_Graduation_Program\Ncep\surface_air.mon.mean.nc')
+# ST = f1.air.loc[(f1.time.dt.month.isin([6, 7, 8]))].loc['1950-01-01':'2019-12-01']
+# ST = ST.sel(lat=np.arange(0, 92.5, 2.5))
+# ST_summer_mean = ST.groupby('time.year').mean('time').mean('lat').mean('lon')
+# year = ST_summer_mean.year
+f1 = xr.open_dataset(r'F:\6_Scientific_Research\3_Teleconnection\1_Data\ERA5\ERA5_2MT_1959-2022_JJA_25.nc')
+SAT0 = f1.t2m.sel(expver=1) - 273.15
+lat, lon = f1.latitude, f1.longitude
+lat_range = lat[(lat>=0)&(lat<=75)]
+# 判断T2M是否在陆地上
+for i in range(91):
+    for j in range(360):
+        if globe.is_ocean(lat[i], lon[j]):
+            SAT0[:, i, j] = 0
+SAT = SAT0.sel(latitude=lat_range).groupby('time.year').mean(dim='time', skipna=True).mean('latitude').mean('longitude')
+SAT = SAT.sel(year=range(1979,2023))
+Year = range(1979, 2023)
+def drawing(year, ST_summer_mean):
+    # 设置字体为楷体,显示负号
+    mpl.rcParams['font.sans-serif'] = ['HeiTi']
+    mpl.rcParams['axes.unicode_minus'] = False  # 显示负号
+    fig = plt.figure(figsize=(10, 6), dpi=400)
+    ax1 = fig.add_subplot(1, 1, 1)
+    ax1.set_ylim(7, 9) # 设置纵坐标 范围
+    y_major_locator = MultipleLocator(0.5) # 设置纵坐标最小刻度
+    ax1.yaxis.set_major_locator(y_major_locator)
+    ax1.set_title('Summer ERA5-T2M-land averaged in the NH', fontdict={'fontsize':'x-large', 'fontweight':'heavy'})
+    # ax1.set_xticks(year[0:69], minor=20)
+    # plt.xticks(fontsize=13, fontwidth=4)
+    # plt.yticks(fontsize=13, fontwidth=4)
+
+    ax_br = ax1.bar(year, ST_summer_mean, width=0.8, color='red')
+    plt.savefig(r'F:\6_Scientific_Research\3_Teleconnection\2_Picture\3_Pred\2_era5\T2M\1_T2M-land_Series.png')
+    plt.show()
+
+drawing(Year, SAT)

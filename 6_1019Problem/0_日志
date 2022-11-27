@@ -1,0 +1,19 @@
+1、遥相关是距平相关吗？
+我们目前定义的是原场的相关系数，现在试试定义距平相关
+    1_Cir_R_Ano_Identify_Teleconnection.py
+    2_Cir_R_Ano_Max_Significant_Teleconnection.py
+    将原场绘制为Cir_Ano的TEL_Matrix
+    得出结论：原场和距平场是一样的
+
+2、探讨为什么R不能定义遥相关
+    3_COR_Cir-R_GHT.py
+    （1）R与GHT点对点的相关系数图
+    得出结论：发现其实并不太好
+
+3、绘制遥相关指数和GHT以及Cir_R的回归图
+    1_H-Tel&R.py 运行成功，回归出来的和GHT的很像
+
+# 发现重大问题
+原来定义的遥相关之间的遥相关系数是错的
+
+

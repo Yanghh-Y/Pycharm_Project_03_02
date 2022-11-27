@@ -1,0 +1,40 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from matplotlib.pyplot import MultipleLocator
+
+import seaborn as sns
+
+# --------- 读取数据 -------- #
+W_TEL = pd.read_csv(r'F:\6_Scientific_Research\3_Teleconnection\0 Start over again\0_Data\1_Teleconnection\Index\Tel_Index_Normal.csv',
+                    usecols=['W_A1A2', 'W_B1B2', 'W_B3B4', 'W_C1C2', 'W_D1D2', 'W_E1E2', 'W_F1F2'])
+W_Col = W_TEL.columns
+year = range(1979, 2023)
+
+
+# ------ 定义绘制回归分布的等值线图
+fig = plt.figure(figsize=(4,14), dpi=600)
+fig.subplots_adjust(hspace=0.45) # 子图间距
+ax1 = fig.add_subplot(7, 1, 1)
+ax2 = fig.add_subplot(7, 1, 2)
+ax3 = fig.add_subplot(7, 1, 3)
+ax4 = fig.add_subplot(7, 1, 4)
+ax5 = fig.add_subplot(7, 1, 5)
+ax6 = fig.add_subplot(7, 1, 6)
+ax7 = fig.add_subplot(7, 1, 7)
+axs = [ax1, ax2, ax3, ax4, ax5, ax6, ax7]
+for i in range(len(axs)):
+    # 纵坐标
+    axs[i].set_ylim(-2.5, 2.5)  # 设置纵坐标 范围
+    # y_major_locator = MultipleLocator(1)  # 设置纵坐标最小刻度
+    # axs[i].yaxis.set_major_locator(y_major_locator)
+    # 子图图题
+    axs[i].set_title(str(W_Col[i]), loc='left')
+    # 条形图
+    axs[i].bar(year, W_TEL.iloc[:, i], width=0.8, color='red')
+    fig.savefig(r'F:\6_Scientific_Research\3_Teleconnection\0 Start over again\1_Picture\3_Explanation\1_Time_series\W-Tel_Series.png')
+    plt.suptitle('W-TEL-INDEX of 1979-2022', x=0.5, y=0.93)
+plt.show()
+
+
+

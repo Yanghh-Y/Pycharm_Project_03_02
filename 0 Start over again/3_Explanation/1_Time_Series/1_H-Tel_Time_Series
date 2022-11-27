@@ -1,0 +1,50 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from matplotlib.pyplot import MultipleLocator
+
+import seaborn as sns
+
+# --------- 读取数据 -------- #
+TELIS = pd.read_csv(r'F:\6_Scientific_Research\3_Teleconnection\0 Start over again\0_Data\1_Teleconnection\Index\Tel_Index.csv')
+Col = TELIS.columns
+# -------遥相关指数标准化
+def ZscoreNormalization(x):
+    """Z-score normaliaztion"""
+    x = (x - np.mean(x)) / np.std(x)
+    return x
+TEL_N = pd.DataFrame() # 存放标准化之后的指数
+for i in Col:
+    TEL_N[i] = ZscoreNormalization(TELIS[i])
+
+TEL_N.to_csv(r'F:\6_Scientific_Research\3_Teleconnection\0 Start over again\0_Data\1_Teleconnection\Index\Tel_Index_Normal.csv')
+year = range(1979, 2023)
+# ----- 取H遥相关指数
+H_TEL = TEL_N.iloc[:, 1:8]
+H_Col = H_TEL.columns
+# 定义绘制回归分布的等值线图
+fig = plt.figure(figsize=(4,14), dpi=600)
+fig.subplots_adjust(hspace=0.45) # 子图间距
+ax1 = fig.add_subplot(7, 1, 1)
+ax2 = fig.add_subplot(7, 1, 2)
+ax3 = fig.add_subplot(7, 1, 3)
+ax4 = fig.add_subplot(7, 1, 4)
+ax5 = fig.add_subplot(7, 1, 5)
+ax6 = fig.add_subplot(7, 1, 6)
+ax7 = fig.add_subplot(7, 1, 7)
+axs = [ax1, ax2, ax3, ax4, ax5, ax6, ax7]
+for i in range(len(axs)):
+    # 纵坐标
+    axs[i].set_ylim(-2.5, 2.5)  # 设置纵坐标 范围
+    # y_major_locator = MultipleLocator(1)  # 设置纵坐标最小刻度
+    # axs[i].yaxis.set_major_locator(y_major_locator)
+    # 子图图题
+    axs[i].set_title(str(H_Col[i]), loc='left')
+    # 条形图
+    axs[i].bar(year, H_TEL.iloc[:, i], width=0.8, color='red')
+    fig.savefig(r'F:\6_Scientific_Research\3_Teleconnection\0 Start over again\1_Picture\3_Explanation\1_Time_series\H-Tel_Series.png')
+    plt.suptitle('H-TEL-INDEX of 1979-2022', x=0.5, y=0.93)
+plt.show()
+
+
+

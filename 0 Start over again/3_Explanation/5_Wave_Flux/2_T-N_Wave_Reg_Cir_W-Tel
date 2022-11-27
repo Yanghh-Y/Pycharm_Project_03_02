@@ -1,0 +1,201 @@
+import numpy as np
+import xarray as xr
+import pandas as pd
+import scipy
+from scipy import signal
+from scipy.stats import linregress
+import cartopy.crs as ccrs
+import cartopy.mpl.ticker as cticker
+import cartopy.feature as cfeature #用于添加地理属性的库
+import metpy.calc as mpcalc
+from metpy.units import units
+from metpy.constants import earth_avg_radius
+import matplotlib.pyplot as plt
+import cartopy.crs as ccrs
+from cartopy.util import add_cyclic_point #进行循环
+import cartopy.feature as cfeature #用于添加地理属性的库
+from cartopy.mpl.ticker import LongitudeFormatter,LatitudeFormatter #添加经纬度需要
+import Longitude_Transform
+
+
+#---遥相关指数---#
+teli = pd.read_csv(r'F:\6_Scientific_Research\3_Teleconnection\0 Start over again\0_Data\1_Teleconnection\Index\Tel_Index_Normal.csv',\
+                   usecols=['W_A1A2', 'W_B1B2', 'W_B3B4', 'W_C1C2', 'W_D1D2', 'W_E1E2', 'W_F1F2'], nrows=43)
+TEL_name = teli.columns
+
+# 一些常数
+p = 200 * units('hPa')  # 也有用300hPa的
+p0 = 1000 * units('hPa')
+latrange = np.arange(0, 92.5, 2.5)
+
+
+# -------- 读取数据 --------#
+# 将ERA5的Longitude(-180， 180) --> (0, 360)
+filepath = r'F:\6_Scientific_Research\3_Teleconnection\1_Data\ERA5\ERA5_GHT_UVT_1979-2021_25.nc'
+lon_name = 'longitude'
+fi = Longitude_Transform.translon180_360(filepath, lon_name) # 将
+
+# 读取200hPa的GHT,U,V
+# year作为背景场，sum作为目标场去回归 1979-2021 lat 0-90 lon -180-180
+hgt_year = fi.z.sel(level=p, latitude=latrange).groupby('time.year').mean(dim='time', skipna=True) * units('m') / 9.8
+u_year = fi.u.sel(level=p, latitude=latrange).groupby('time.year').mean(dim='time', skipna=True) * units('m/s')
+v_year = fi.v.sel(level=p, latitude=latrange).groupby('time.year').mean(dim='time', skipna=True) * units('m/s')
+hgt_sum = fi.z.sel(level=p, latitude=latrange).loc[(fi.time.dt.month.isin([6, 7, 8]))].groupby('time.year').mean(dim='time', skipna=True) / 9.8
+u_sum = fi.u.sel(level=p, latitude=latrange).loc[(fi.time.dt.month.isin([6, 7, 8]))].groupby('time.year').mean(dim='time', skipna=True)
+v_sum = fi.v.sel(level=p, latitude=latrange).loc[(fi.time.dt.month.isin([6, 7, 8]))].groupby('time.year').mean(dim='time', skipna=True)
+
+
+# -------- 去线性趋势 --------- #
+# sum的三个变量去线性趋势
+hgt_detrend = scipy.signal.detrend(hgt_sum, axis=0, type='linear', overwrite_data=False)
+hgt_year_mean = hgt_sum.mean('year')
+for iyear in range(43):
+    hgt_detrend[iyear, :, :] = hgt_detrend[iyear, :, :] + hgt_year_mean[:, :]
+# 求回归
+Z_reg, P_reg = [], []
+for it in range(7):
+    phgt, hgt_reg = np.zeros((37, 144)), np.zeros((37, 144))
+    for i in range(37):
+           for j in range(144):
+                  hgt_reg[i, j], _, _, phgt[i, j], _ = linregress(teli.iloc[:, it], hgt_detrend[:, i, j])
+    # 现在所有的reg_sum 代替纬偏值
+    lon, lat = hgt_sum.longitude, hgt_sum.latitude
+    hgt_reg = xr.DataArray(hgt_reg, coords=[lat, lon], dims=['latitude', 'longitude'])
+    hgt_reg = hgt_reg * units('m')
+    Z_reg.append(hgt_reg)
+    P_reg.append(phgt)
+
+
+# --------- 变量 -------- #
+# 气候场
+Φ_climatic = mpcalc.height_to_geopotential(hgt_year)
+u_climatic = u_year.mean(dim='year', skipna=True)
+v_climatic = v_year.mean(dim='year', skipna=True)
+wind_climatic = mpcalc.wind_speed(u_climatic, v_climatic)
+# 目标场: Φ(hgt_sum), u_reg, v_reg
+hgt_sum = hgt_sum * units('m')
+Φ = mpcalc.height_to_geopotential(hgt_sum)
+# Φ = Φ.mean(dim='year') # [37, 144]
+
+# 经纬度转为弧度制
+lon_deg = Φ['longitude'].copy()
+lat_deg = Φ['latitude'].copy()
+lon_rad = np.deg2rad(lon_deg) * units('1')
+lat_rad = np.deg2rad(lat_deg) * units('1')
+# 科氏参数
+f = mpcalc.coriolis_parameter(Φ['latitude'])
+f = f.assign_coords({'latitude': lat_rad})
+# 常数
+cosφ = np.cos(lat_rad)
+# uv气候态改为弧度制
+u_climatic = u_climatic.assign_coords({'longitude': lon_rad, 'latitude': lat_rad})
+v_climatic = v_climatic.assign_coords({'longitude': lon_rad, 'latitude': lat_rad})
+cosφ = cosφ.assign_coords({'latitude': lat_rad})
+wind_climatic = wind_climatic.assign_coords({'longitude': lon_rad, 'latitude': lat_rad})
+
+
+
+# ------- 给Ψ_prime去线性趋势 ------- #
+
+# 求回归
+Ψ_list, fx_list, fy_list = [], [], []
+for it in range(7):
+    # 位势的纬向偏差
+    # 日志1
+    Φ_prime = -(Φ_climatic.mean(dim='longitude') + (-1 * Φ))
+    # 将需要对弧度制经纬度求偏导的量的坐标都换成弧度制经纬度
+    Φ_prime = Φ_prime.assign_coords({'longitude': lon_rad, 'latitude': lat_rad})
+    # 准地转流函数相对于气候场的扰动
+    Ψ_prime = Φ_prime / f
+    # 对准地准流函数去线性趋势
+    Ψ_prime = np.array(Ψ_prime)
+    Ψ_prime_detrend = scipy.signal.detrend(Ψ_prime[:, 1:, :], axis=0, type='linear', overwrite_data=False)
+    Ψ_prime_mean = Ψ_prime.mean(0)
+    for iyear in range(43):
+        Ψ_prime[iyear, 1:, :] = Ψ_prime_detrend[iyear, :, :] + Ψ_prime_mean[1:, :]
+    Ψ_reg = np.zeros((37, 144))
+    for i in range(37):
+           for j in range(144):
+                  Ψ_reg[i, j], _, _, _, _ = linregress(teli.iloc[:, it], Ψ_prime[:, i, j])
+    Ψ_prime = xr.DataArray(Ψ_reg, coords=[lat_rad, lon_rad], dims=['latitude', 'longitude'])
+    Ψ_prime = Ψ_prime* units('meter ** 2 / second')
+    Ψ_list.append(Ψ_prime)
+
+# -------- 计算部分 -------- #
+#---偏导过程---#
+    dΨ_prime_dλ = Ψ_prime.differentiate('longitude')
+    dΨ_prime_dφ = Ψ_prime.differentiate('latitude')
+    ddΨ_prime_ddλ = dΨ_prime_dλ.differentiate('longitude')
+    ddΨ_prime_ddφ = dΨ_prime_dφ.differentiate('latitude')
+    ddΨ_prime_dλφ = dΨ_prime_dλ.differentiate('latitude')
+    # T-N波作用通量的水平分量公共部分
+    temp1 = p / p0 * cosφ / (2 * wind_climatic * earth_avg_radius**2)
+    temp2 = dΨ_prime_dλ * dΨ_prime_dφ - Ψ_prime * ddΨ_prime_dλφ
+    # T-N波作用通量的水平分量
+    fx = temp1 * (u_climatic / cosφ**2 * (dΨ_prime_dλ**2 - Ψ_prime * ddΨ_prime_ddλ) + v_climatic / cosφ * temp2)
+    fy = temp1 * (u_climatic / cosφ * temp2 + v_climatic * (dΨ_prime_dφ**2 - Ψ_prime * ddΨ_prime_ddφ))
+    # # 把弧度制经纬度再换成角度制便于画图
+    lon = lon_deg.values
+    # lon[lon>180] -= 360
+    fx = fx.assign_coords({'longitude': lon, 'latitude': lat_deg}).sortby(['longitude', 'latitude'])
+    fy = fy.assign_coords({'longitude': lon, 'latitude': lat_deg}).sortby(['longitude', 'latitude'])
+    fx_list.append(fx)
+    fy_list.append(fy)
+
+# -------- 绘图部分 -------- #
+lat = hgt_year.latitude
+lon = hgt_year.longitude
+fig = plt.figure(figsize=(6, 14), dpi=600)
+fig.subplots_adjust(hspace=0.6 ) # 子图间距
+ax1 = fig.add_subplot(7, 1, 1, projection=ccrs.PlateCarree(central_longitude=0))
+ax2 = fig.add_subplot(7, 1, 2, projection=ccrs.PlateCarree(central_longitude=0))
+ax3 = fig.add_subplot(7, 1, 3, projection=ccrs.PlateCarree(central_longitude=0))
+ax4 = fig.add_subplot(7, 1, 4, projection=ccrs.PlateCarree(central_longitude=0))
+ax5 = fig.add_subplot(7, 1, 5, projection=ccrs.PlateCarree(central_longitude=0))
+ax6 = fig.add_subplot(7, 1, 6, projection=ccrs.PlateCarree(central_longitude=0))
+ax7 = fig.add_subplot(7, 1, 7, projection=ccrs.PlateCarree(central_longitude=0))
+ax = [ax1, ax2, ax3, ax4, ax5, ax6, ax7]
+for i in range(7):
+    # 绘图所需要的变量
+    fx = fx_list[i]
+    fy = fy_list[i]
+    hgt_reg = Z_reg[i]
+    P = P_reg[i]
+    fx, clon = add_cyclic_point(fx, coord=lon)
+    fy, clon = add_cyclic_point(fy, coord=lon)
+    hgt_reg, clon = add_cyclic_point(hgt_reg, coord=lon)
+    P, clon = add_cyclic_point(P, coord=lon)
+    # 子图图题
+    ax[i].set_title('(a) Wave-activity flux associated with ' + TEL_name[i], loc='left', fontsize=6)
+    # 刻度形式
+    ax[i].set_xticks([-180, -150, -120, -90, -60, -30, 0, 30, 60, 90, 120, 150, 180]) # 指定要显示的经纬度
+    # ax[i].set_xticklabels([-180, -150, -120, -90, -60, -30, 0, 30, 60, 90, 120, 150, 180], fontdict={'fontsize': 6})
+    ax[i].set_yticks([0, 30, 60, 90])
+    # ax[i].set_ytickslabels([0, 30, 60, 90], fontdict={'fontsize': 6})
+    ax[i].xaxis.set_major_formatter(LongitudeFormatter())  # 刻度格式转换为经纬度样式
+    ax[i].yaxis.set_major_formatter(LatitudeFormatter())
+    ax[i].tick_params(axis='both', which='major', labelsize=5)
+    # 调整图的内容：投影方式，海岸线
+    ax[i].add_feature(cfeature.COASTLINE.with_scale('50m'), lw=0.4)  # 添加海岸线
+    # 填充色
+    ax_cf1 = ax[i].contourf(clon, lat, hgt_reg, transform=ccrs.PlateCarree(), zorder=0, cmap='coolwarm',
+                                 levels=np.arange(-16, 18, 2), extend='both')
+    # 箭头
+    ax[i].quiver(clon[::2], lat[::2], fx[::2,::2], fy[::2,::2], scale=5)
+    ax[i].contourf(clon, lat, P[:, :], levels=[0, 0.05, 1], hatches=['...', None], zorder=1, colors="none",transform=ccrs.PlateCarree())
+fig.subplots_adjust(bottom=0.1)
+position = fig.add_axes([0.15, 0.05, 0.7, 0.015])  # 位置[左,下,右,上]
+cb = fig.colorbar(ax_cf1, shrink=0.6, cax=position, orientation='horizontal', extend='both')
+fig.savefig(r'F:\6_Scientific_Research\3_Teleconnection\0 Start over again\1_Picture\3_Explanation\4_Wave_flux\Wave_flux_associated_with_W-Tel.png')
+
+plt.show()
+
+lon = r.lon
+rmax = []
+for t in range(42):
+    ryear = []
+    for i in range(101):
+        for j in range(141):
+            if r.isel(t,i,j) == 0.7:
+                ryear.append(lon[j])
+    rmax.append(max(ryear))

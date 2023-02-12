@@ -5,6 +5,9 @@ import scipy
 from scipy import signal # 用于去线性趋势
 import sys
 import BidirectionalStepwiseSelection as ss # 写的多元线性回归的函数
+from sklearn.metrics import mean_squared_error, r2_score # 用于评价模型的函数
+import statsmodels.api as sm
+from sklearn.preprocessing import StandardScaler
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
@@ -27,7 +30,7 @@ SAT_year_mean = SAT.mean('year')
 for iyear in range(44):
     SAT_detrend[iyear, :, :] = SAT_detrend[iyear, :, :] + SAT_year_mean[:, :]
     SAT_ANO[iyear, :, :] = SAT_detrend[iyear, :, :] - SAT_CL[:, :]
-SAT_Pred_21, SAT_Pred_22 = np.zeros((37, 144)), np.zeros((37, 144))
+SAT_Recon_21,SAT_Recon_22 = np.zeros((37, 144)), np.zeros((37, 144))
 # --- 提取线性分量 --- #
 SAT_linear = SAT - SAT_detrend
 SAT_linear_2021 = SAT_linear[-2, :, :]
@@ -43,12 +46,8 @@ col = ['H_A1A2', 'H_A3A4', 'H_B1B2', 'H_C1C2', 'H_C3C4', 'H_D1D2', 'H_E1E2', 'H_
        'W_F1F2']
 TELI.columns = col
 TELI = TELI.drop(columns=['H_A3A4', 'H_C3C4', 'H_G1G2', 'W_A3A4'])
-
-Factor = TELI.copy(deep=True)
-Factor['intercept'] = 1
-factors_2021 = Factor.iloc[-2, :]
-factors_2022 = Factor.iloc[-1, :]
-
+TELI2021 = TELI[['H_C1C2', 'H_H1H2', 'W_A1A2', 'W_B3B4', 'W_D1D2']]
+TELI2022 = TELI[['H_A1A2', 'H_C1C2', 'H_D1D2', 'H_F1F2', 'W_A1A2', 'W_B1B2', 'W_B3B4', 'W_C1C2', 'W_D1D2']]
 
 # --- 训练模型 --- #
 ErrList = []
@@ -56,45 +55,37 @@ for ilat in range(37):
     for ilon in range(144):
         print(ilat, ilon)
         try:
-            TELIS = TELI.copy(deep=True)
-            TELIS['y'] = SAT_ANO[:, ilat, ilon]
-            # --- Pred 2022
-            InPut_T_2022 = TELIS.iloc[:43, :]
-            X2022 = InPut_T_2022.drop(columns= "y")
-            y2022 = InPut_T_2022.y
-            final_vars2022, iterations_logs2022, reg_model2022 = ss.BidirectionalStepwiseSelection(X2022, y2022, model_type ="linear", elimination_criteria = "aic", senter=0.1, sstay=0.1)
-            yFit = reg_model2022.fittedvalues
-            predict2022 = 0
-            for i in range(len(final_vars2022)):
-                pre_mid = reg_model2022.params[final_vars2022[i]] * factors_2022[final_vars2022[i]]
-                predict2022 = predict2022 + pre_mid
-            SAT_Pred_22[ilat, ilon] = predict2022
-            # --- Pred 2021
-            InPut_T_2021 = TELIS.iloc[:42, :]
-            X2021 = InPut_T_2021.drop(columns= "y")
-            y2021 = InPut_T_2021.y
-            final_vars2021, iterations_logs2021, reg_model2021 = ss.BidirectionalStepwiseSelection(X2021, y2021, model_type ="linear", elimination_criteria = "aic", senter=0.1, sstay=0.1)
-            yFit = reg_model2021.fittedvalues
-            predict2021 = 0
-            for i in range(len(final_vars2021)):
-                pre_mid = reg_model2021.params[final_vars2021[i]] * factors_2021[final_vars2021[i]]
-                predict2021 = predict2021 + pre_mid
-            SAT_Pred_21[ilat, ilon] = predict2021
+            TELIS1 = TELI2021.copy(deep=True)
+            TELIS1['y'] = SAT_ANO[:, ilat, ilon]
+            X1 = TELIS1.drop(columns= "y")
+            y1 = TELIS1.y
+            # 准备训练逐步拟合回归模型
+            final_vars1, iterations_logs1, reg_model1 = ss.BidirectionalStepwiseSelection(X1, y1, model_type ="linear", elimination_criteria = "aic", senter=0.1, sstay=0.1)
+            yFit1 = reg_model1.fittedvalues
+            SAT_Recon_21[ilat, ilon] = yFit1[42]
 
+            TELIS2 = TELI2022.copy(deep=True)
+            TELIS2['y'] = SAT_ANO[:, ilat, ilon]
+            X2 = TELIS2.drop(columns= "y")
+            y2 = TELIS2.y
+            # 准备训练逐步拟合回归模型
+            final_vars2, iterations_logs2, reg_model2 = ss.BidirectionalStepwiseSelection(X2, y2, model_type ="linear", elimination_criteria = "aic", senter=0.1, sstay=0.1)
+            yFit2 = reg_model2.fittedvalues
+            SAT_Recon_22[ilat, ilon] = yFit2[43]
         except:
             tuple = (ilat, ilon)
             ErrList.append(tuple)
-            SAT_Pred_21[ilat, ilon], SAT_Pred_22[ilat, ilon] = SAT_ANO[42, ilat, ilon], SAT_ANO[43, ilat, ilon]
+            SAT_Recon_21[ilat, ilon], SAT_Recon_22[ilat, ilon] = SAT_ANO[42, ilat, ilon], SAT_ANO[43, ilat, ilon]
 
 
 # --- Drawing - Contourf --- #
 # -- Data - Pre-Process -- #
-SAT_Pred_21 = SAT_Pred_21 + SAT_linear_2021
-SAT_Pred_22 = SAT_Pred_22 + SAT_linear_2022
-SAT_Pred_21_Mask = mask_land(SAT_Pred_21, label='ocean', lonname='longitude')
-SAT_Pred_22_Mask = mask_land(SAT_Pred_22, label='ocean', lonname='longitude')
-SAT_Pred_21c, cyclic_lons = add_cyclic_point(SAT_Pred_21_Mask, coord=lon)
-SAT_Pred_22c, cyclic_lons = add_cyclic_point(SAT_Pred_22_Mask, coord=lon)
+SAT_Recon_21 = SAT_Recon_21 + SAT_linear_2021
+SAT_Recon_22 = SAT_Recon_22 + SAT_linear_2022
+SAT_Recon_21_mask = mask_land(SAT_Recon_21, label='ocean', lonname='longitude')
+SAT_Recon_22_mask = mask_land(SAT_Recon_22, label='ocean', lonname='longitude')
+SAT_Recon_21c, cyclic_lons = add_cyclic_point(SAT_Recon_21_mask, coord=lon)
+SAT_Recon_22c, cyclic_lons = add_cyclic_point(SAT_Recon_22_mask, coord=lon)
 # -- Fuction - Drawing -- #
 def drawing_SAT(cyclic_data1, cyclic_data2, name1, name2):
     # 设置字体为楷体,显示负号
@@ -125,9 +116,9 @@ def drawing_SAT(cyclic_data1, cyclic_data2, name1, name2):
     fig.subplots_adjust(right=0.9)
     position = fig.add_axes([0.93, 0.25, 0.015, 0.5])  # 位置[左,下,右,上]
     cb = fig.colorbar(ax_cf2, shrink=0.6, cax=position, extend='both')
-    plt.savefig(r'Z:\6_Scientific_Research\3_Teleconnection\0 Start over again\1_Picture\2_Reg_Recon-Pred\01_Step-Reg-Predict-SAT-2021-2022.png')
+    plt.savefig(r'Z:\6_Scientific_Research\3_Teleconnection\0 Start over again\1_Picture\2_Reg_Recon-Pred\08_01Step-Reg-Reconstruct-SAT-2021-2022.png')
     plt.show()
-drawing_SAT(SAT_Pred_21c, SAT_Pred_22c, name1='Predict-21', name2='Predict-22')
+drawing_SAT(SAT_Recon_21c, SAT_Recon_22c, name1='Reconstruct-21', name2='Reconstruct-22')
 
 
 

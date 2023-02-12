@@ -19,7 +19,7 @@ import Longitude_Transform
 
 
 #---遥相关指数---#
-teli = pd.read_csv(r'F:\6_Scientific_Research\3_Teleconnection\0 Start over again\0_Data\1_Teleconnection\Index\Tel_Index_Normal.csv',\
+teli = pd.read_csv(r'Z:\6_Scientific_Research\3_Teleconnection\0 Start over again\0_Data\1_Teleconnection\Index\Tel_Index_Normal.csv',\
                    usecols=['H_A1A2', 'H_B1B2', 'H_C1C2', 'H_D1D2', 'H_E1E2', 'H_F1F2', 'H_H1H2'], nrows=43)
 TEL_name = teli.columns
 
@@ -31,19 +31,21 @@ latrange = np.arange(0, 92.5, 2.5)
 
 # -------- 读取数据 --------#
 # 将ERA5的Longitude(-180， 180) --> (0, 360)
-filepath = r'F:\6_Scientific_Research\3_Teleconnection\1_Data\ERA5\ERA5_GHT_UVT_1979-2021_25.nc'
+filepath = r'Z:\6_Scientific_Research\3_Teleconnection\1_Data\ERA5\ERA5_T_U_V_25.nc'
 lon_name = 'longitude'
 fi = Longitude_Transform.translon180_360(filepath, lon_name) # 将
 
 # 读取200hPa的GHT,U,V
 # year作为背景场，sum作为目标场去回归 1979-2021 lat 0-90 lon -180-180
-hgt_year = fi.z.sel(level=p, latitude=latrange).groupby('time.year').mean(dim='time', skipna=True) * units('m') / 9.8
-u_year = fi.u.sel(level=p, latitude=latrange).groupby('time.year').mean(dim='time', skipna=True) * units('m/s')
-v_year = fi.v.sel(level=p, latitude=latrange).groupby('time.year').mean(dim='time', skipna=True) * units('m/s')
+hgt_year = fi.z.sel(level=p, latitude=latrange).loc[(fi.time.dt.year.isin(range(1979,2022)))].groupby('time.year').mean(dim='time', skipna=True) * units('m') / 9.8
+u_year = fi.u.sel(level=p, latitude=latrange).loc[(fi.time.dt.year.isin(range(1979,2022)))].groupby('time.year').mean(dim='time', skipna=True) * units('m/s')
+v_year = fi.v.sel(level=p, latitude=latrange).loc[(fi.time.dt.year.isin(range(1979,2022)))].groupby('time.year').mean(dim='time', skipna=True) * units('m/s')
 hgt_sum = fi.z.sel(level=p, latitude=latrange).loc[(fi.time.dt.month.isin([6, 7, 8]))].groupby('time.year').mean(dim='time', skipna=True) / 9.8
 u_sum = fi.u.sel(level=p, latitude=latrange).loc[(fi.time.dt.month.isin([6, 7, 8]))].groupby('time.year').mean(dim='time', skipna=True)
 v_sum = fi.v.sel(level=p, latitude=latrange).loc[(fi.time.dt.month.isin([6, 7, 8]))].groupby('time.year').mean(dim='time', skipna=True)
-
+hgt_sum = hgt_sum.sel(year=range(1979,2022))
+u_sum = u_sum.sel(year=range(1979,2022))
+v_sum = v_sum.sel(year=range(1979,2022))
 
 # -------- 去线性趋势 --------- #
 # sum的三个变量去线性趋势
@@ -142,6 +144,14 @@ for it in range(7):
     fx_list.append(fx)
     fy_list.append(fy)
 
+# -------- 绘制两点经纬度 --------- #
+teli_point = pd.read_csv(r'Z:\6_Scientific_Research\3_Teleconnection\0 Start over again\0_Data\1_Teleconnection\H\HTel.csv')
+A_lat = [87.5, 50, 45, 60, 67.5, 40, 52.5]
+A_lon = [87.5, -100, 50.0, 127.5, -40, 30.0, 17.5]
+B_lat = list(teli_point.B_lat)
+B_lon = [-95, -67.5, 82.5, 80, 7.5, -162.5, 57.5]
+
+
 # -------- 绘图部分 -------- #
 lat = hgt_year.latitude
 lon = hgt_year.longitude
@@ -182,11 +192,17 @@ for i in range(7):
                                  levels=np.arange(-16, 18, 2), extend='both')
     # 箭头
     ax[i].quiver(clon[::2], lat[::2], fx[::2,::2], fy[::2,::2], scale=5)
-    ax[i].contourf(clon, lat, P[:, :], levels=[0, 0.05, 1], hatches=['...', None], zorder=1, colors="none",transform=ccrs.PlateCarree())
+    ax[i].contourf(clon, lat, P[:, :], levels=[0, 0.05, 1], hatches=['...', None], zorder=0, colors="none",transform=ccrs.PlateCarree())
+    ax[i].plot(A_lon[i],A_lat[i], color='ivory', marker='o')
+    ax[i].plot(B_lon[i],B_lat[i], color='ivory', marker='o')
+
+    # ax[i].plot(A_lon[i],A_lat[i], 'o', '#145211192', zorder=1)
+    # ax[i].plot(B_lon[i],B_lat[i], 'o', '#145211192', zorder=1)
+
 fig.subplots_adjust(bottom=0.1)
 position = fig.add_axes([0.15, 0.05, 0.7, 0.015])  # 位置[左,下,右,上]
 cb = fig.colorbar(ax_cf1, shrink=0.6, cax=position, orientation='horizontal', extend='both')
-fig.savefig(r'F:\6_Scientific_Research\3_Teleconnection\0 Start over again\1_Picture\3_Explanation\4_Wave_flux\Wave_flux_associated_with_H-Tel.png')
+fig.savefig(r'Z:\6_Scientific_Research\3_Teleconnection\0 Start over again\1_Picture\3_Explanation\4_Wave_flux\Wave_flux_associated_with_H-Tel+point.png')
 
 plt.show()
 

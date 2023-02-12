@@ -54,3 +54,5 @@
         Ψ_prime = xr.DataArray(Ψ_reg, coords=[lat_rad, lon_rad], dims=['lat', 'lon'])
         Ψ_prime = Ψ_prime* units('meter ** 2 / second')
     渡劫成功！
+
+3、在波的回归上加上遥相关的两点

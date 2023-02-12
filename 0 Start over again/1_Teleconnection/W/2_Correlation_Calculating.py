@@ -7,7 +7,7 @@ from scipy.stats.mstats import ttest_ind
 from scipy.stats import pearsonr
 
 #---Read_Data---#
-f1 = xr.open_dataset(r'F:\6_Scientific_Research\3_Teleconnection\1_Data\Stream\Stream_nc\cir_W_197901-202208.nc')
+f1 = xr.open_dataset(r'Z:\6_Scientific_Research\3_Teleconnection\Stream\Stream_nc\cir_W_197901-202208.nc')
 # 筛选夏季平均
 # 夏季平均的CIR_H_Sum[44, 37, 144]
 Sum_Index = [i for i in range(524) if i%12 in [5, 6, 7]] # 筛选
@@ -30,7 +30,7 @@ Cir_W_Sum = xr.DataArray(Cir_W_Sum, coords=[year, lat, lon], dims=['year', 'lat'
 #         r[i, j], _ = pearsonr(Cir_W_Sum[:, 1, 1], Cir_W_Sum[:, i, j])
 
 # 某两点
-cor, p = pearsonr(Cir_W_Sum.sel(lat=65, lon=97.5), Cir_W_Sum.sel(lat=42.5, lon=107.5))
+cor, p = pearsonr(Cir_W_Sum.sel(lat=70, lon=355), Cir_W_Sum.sel(lat=45, lon=340))
 # cor, p = pearsonr(Cir_W_Sum[:, 1, 1], Cir_W_Sum[:, 1, 72])
 
 

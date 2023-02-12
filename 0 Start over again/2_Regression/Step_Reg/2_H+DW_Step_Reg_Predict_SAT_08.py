@@ -43,11 +43,16 @@ col = ['H_A1A2', 'H_A3A4', 'H_B1B2', 'H_C1C2', 'H_C3C4', 'H_D1D2', 'H_E1E2', 'H_
        'W_F1F2']
 TELI.columns = col
 TELI = TELI.drop(columns=['H_A3A4', 'H_C3C4', 'H_G1G2', 'W_A3A4'])
+TELI2021 = TELI[['H_C1C2', 'H_H1H2', 'W_A1A2', 'W_B3B4', 'W_D1D2']]
+TELI2022 = TELI[['H_A1A2', 'H_C1C2', 'H_D1D2', 'H_F1F2', 'W_A1A2', 'W_B1B2', 'W_B3B4', 'W_C1C2', 'W_D1D2']]
+Factor2021 = TELI2021.copy(deep=True)
+Factor2022 = TELI2022.copy(deep=True)
 
-Factor = TELI.copy(deep=True)
-Factor['intercept'] = 1
-factors_2021 = Factor.iloc[-2, :]
-factors_2022 = Factor.iloc[-1, :]
+Factor2021['intercept'] = 1
+Factor2022['intercept'] = 1
+
+factors_2021 = Factor2021.iloc[-2, :]
+factors_2022 = Factor2022.iloc[-1, :]
 
 
 # --- 训练模型 --- #
@@ -56,10 +61,13 @@ for ilat in range(37):
     for ilon in range(144):
         print(ilat, ilon)
         try:
-            TELIS = TELI.copy(deep=True)
-            TELIS['y'] = SAT_ANO[:, ilat, ilon]
+            TELIS2022 = TELI2022.copy(deep=True)
+            TELIS2021 = TELI2021.copy(deep=True)
+            TELIS2021['y'] = SAT_ANO[:, ilat, ilon]
+            TELIS2022['y'] = SAT_ANO[:, ilat, ilon]
+
             # --- Pred 2022
-            InPut_T_2022 = TELIS.iloc[:43, :]
+            InPut_T_2022 = TELIS2022.iloc[:43, :]
             X2022 = InPut_T_2022.drop(columns= "y")
             y2022 = InPut_T_2022.y
             final_vars2022, iterations_logs2022, reg_model2022 = ss.BidirectionalStepwiseSelection(X2022, y2022, model_type ="linear", elimination_criteria = "aic", senter=0.1, sstay=0.1)
@@ -69,8 +77,10 @@ for ilat in range(37):
                 pre_mid = reg_model2022.params[final_vars2022[i]] * factors_2022[final_vars2022[i]]
                 predict2022 = predict2022 + pre_mid
             SAT_Pred_22[ilat, ilon] = predict2022
+
+
             # --- Pred 2021
-            InPut_T_2021 = TELIS.iloc[:42, :]
+            InPut_T_2021 = TELIS2021.iloc[:42, :]
             X2021 = InPut_T_2021.drop(columns= "y")
             y2021 = InPut_T_2021.y
             final_vars2021, iterations_logs2021, reg_model2021 = ss.BidirectionalStepwiseSelection(X2021, y2021, model_type ="linear", elimination_criteria = "aic", senter=0.1, sstay=0.1)
@@ -125,7 +135,7 @@ def drawing_SAT(cyclic_data1, cyclic_data2, name1, name2):
     fig.subplots_adjust(right=0.9)
     position = fig.add_axes([0.93, 0.25, 0.015, 0.5])  # 位置[左,下,右,上]
     cb = fig.colorbar(ax_cf2, shrink=0.6, cax=position, extend='both')
-    plt.savefig(r'Z:\6_Scientific_Research\3_Teleconnection\0 Start over again\1_Picture\2_Reg_Recon-Pred\01_Step-Reg-Predict-SAT-2021-2022.png')
+    plt.savefig(r'Z:\6_Scientific_Research\3_Teleconnection\0 Start over again\1_Picture\2_Reg_Recon-Pred\08_01Step-Reg-Predict-SAT-2021-2022.png')
     plt.show()
 drawing_SAT(SAT_Pred_21c, SAT_Pred_22c, name1='Predict-21', name2='Predict-22')
 
